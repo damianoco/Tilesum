@@ -31,11 +31,11 @@ p.rules{color:var(--mute);margin:0 0 18px;font-size:.92rem;line-height:1.45}
 .tile.lift{opacity:.25}
 .tally{font-size:1.6rem;line-height:1.35;min-height:2.2rem;margin:0 0 14px;word-break:break-word}
 .wbox{padding:22px 26px;text-align:center}
-dialog{border:1px solid var(--line);border-radius:16px;background:var(--board);color:var(--ink);padding:0;max-width:min(92vw,380px)}
-dialog::backdrop{background:rgba(10,16,16,.55)}
-dialog[open]{animation:dlg .25s ease-out}
+.overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:100;background:rgba(10,16,16,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.overlay[hidden]{display:none}
+.overlay .wbox{border:1px solid var(--line);border-radius:16px;background:var(--board);color:var(--ink);width:100%;max-width:380px;animation:dlg .25s ease-out}
 @keyframes dlg{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){dialog[open]{animation:none}}
+@media (prefers-reduced-motion:reduce){.overlay .wbox{animation:none}}
 .wemoji{font-size:3.2rem;line-height:1.1}
 .wbox h2{font-family:Fraunces,Georgia,serif;font-weight:800;margin:6px 0 8px}
 .weq{font-family:Fraunces,Georgia,serif;font-size:1.4rem;font-weight:600;margin:0 0 6px;word-break:break-word}
@@ -69,18 +69,18 @@ button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 </div>
 <p class="status" id="sol" style="margin-top:12px;color:var(--mute)"></p>
 </main>
-<dialog id="win" aria-labelledby="winTitle">
+<div id="win" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="winTitle">
 <div class="wbox">
 <div class="wemoji" id="winEmoji" aria-hidden="true"></div>
 <h2 id="winTitle"></h2>
 <p class="weq" id="winEq"></p>
 <p class="wmsg" id="winMsg"></p>
 <div class="btns" style="justify-content:center">
-<button class="pri" id="winNext" autofocus>Next game</button>
+<button class="pri" id="winNext">Next game</button>
 <button id="winClose">Keep looking</button>
 </div>
 </div>
-</dialog>
+</div>
 <script>
 (function(){
 var tallyList=[],peeked=false,uid=0,nums=[],row=[],target=0,solutions=new Map(),solved=false;
@@ -136,7 +136,7 @@ function showWin(em){
   $('winTitle').textContent=em?pick(['Solved!','Nicely done!','Got it!','Brilliant!']):'Solved, with a peek';
   $('winEq').textContent=row.map(function(t){return t.txt}).join(' ')+' = '+target;
   $('winMsg').textContent=em?'A new smiley joins your trail.':'No smiley this time, but you got there.';
-  if(d.showModal&&!d.open)d.showModal();
+  d.hidden=false;try{$('winNext').focus()}catch(e){}
 }
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function showTally(){var t=$('tally');t.setAttribute('aria-label',tallyList.length?'Tally of games':'No games yet');t.textContent=tallyList.length?tallyList.join(' '):'Solve a puzzle to start your smile trail'}
@@ -223,9 +223,11 @@ function newGame(){
 }
 function strip(e){return e.charAt(0)==='('&&e.charAt(e.length-1)===')'?e.slice(1,-1):e}
 var winEl=$('win');
-$('winNext').onclick=function(){winEl.close();newGame()};
-$('winClose').onclick=function(){winEl.close()};
-winEl.addEventListener('click',function(e){if(e.target===winEl)winEl.close()});
+function hideWin(){winEl.hidden=true}
+$('winNext').onclick=function(){hideWin();newGame()};
+$('winClose').onclick=function(){hideWin()};
+winEl.addEventListener('click',function(e){if(e.target===winEl)hideWin()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!winEl.hidden)hideWin()});
 showTally();
 $('newBtn').onclick=newGame;
 $('clearBtn').onclick=function(){row=[];render()};
