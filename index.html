@@ -68,7 +68,7 @@ button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 <button id="solBtn">Show a solution</button>
 </div>
 <p class="status" id="sol" style="margin-top:12px;color:var(--mute)"></p>
-<p class="rules" style="margin:18px 0 0;font-size:.8rem">Version 6</p>
+<p class="rules" style="margin:18px 0 0;font-size:.8rem">Version 7</p>
 </main>
 <div id="win" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="winTitle">
 <div class="wbox">
@@ -131,13 +131,20 @@ function evaluate(tiles){
 var SMILES=['😀','😄','😁','😎','🥳','😊','🤩','😃'];
 var OOPS=['🙈','🤡','🐢','🏳️','🤦','🦥'];
 var QUIPS=['Peeking, are we? Here you go:','The numbers wanted me to tell you:','A wise owl whispers:','Fine, since you asked so nicely:','Spoiler alert!','Even calculators need a hint sometimes:'];
+function placeWin(d){
+  var v=window.visualViewport;
+  if(!v){return}
+  d.style.right='auto';d.style.bottom='auto';
+  d.style.left=v.offsetLeft+'px';d.style.top=v.offsetTop+'px';
+  d.style.width=v.width+'px';d.style.height=v.height+'px';
+}
 function showWin(em){
   var d=$('win');
   $('winEmoji').textContent=em||'🙂';
   $('winTitle').textContent=em?pick(['Solved!','Nicely done!','Got it!','Brilliant!']):'Solved, with a peek';
   $('winEq').textContent=row.map(function(t){return t.txt}).join(' ')+' = '+target;
   $('winMsg').textContent=em?'A new smiley joins your trail.':'No smiley this time, but you got there.';
-  d.hidden=false;try{$('winNext').focus()}catch(e){}
+  d.hidden=false;placeWin(d);try{$('winNext').focus({preventScroll:true})}catch(e){}
 }
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function showTally(){var t=$('tally');t.setAttribute('aria-label',tallyList.length?'Tally of games':'No games yet');t.textContent=tallyList.length?tallyList.join(' '):'Solve a puzzle to start your smile trail'}
