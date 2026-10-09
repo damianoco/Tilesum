@@ -68,6 +68,7 @@ button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 <button id="solBtn">Show a solution</button>
 </div>
 <p class="status" id="sol" style="margin-top:12px;color:var(--mute)"></p>
+<p class="rules" style="margin:18px 0 0;font-size:.8rem">Version 6</p>
 </main>
 <div id="win" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="winTitle">
 <div class="wbox">
@@ -148,7 +149,7 @@ function update(){
   if(!row.length){statusEl.textContent='';return}
   try{
     var v=evaluate(row);
-    if(Math.abs(v-target)<1e-9&&used>=2){statusEl.className='status ok win';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – Solved! Start a new game when you are ready.';if(!solved){solved=true;var em='';if(!peeked){em=pick(SMILES);tallyList.push(em);showTally()}showWin(em)}}
+    if(Math.abs(v-target)<1e-9&&used>=2){statusEl.className='status ok win';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – Solved! <button class="pri" data-next="1">Next game</button>';if(!solved){solved=true;var em='';if(!peeked){em=pick(SMILES);tallyList.push(em);showTally()}try{showWin(em)}catch(err){}}}
     else if(Math.abs(v-target)<1e-9){statusEl.className='status';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – use at least two numbers.'}
     else{statusEl.className='status';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – not '+target+' yet.'}
   }catch(e){statusEl.className='status bad';statusEl.textContent=e.message}
@@ -228,6 +229,7 @@ $('winNext').onclick=function(){hideWin();newGame()};
 $('winClose').onclick=function(){hideWin()};
 winEl.addEventListener('click',function(e){if(e.target===winEl)hideWin()});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!winEl.hidden)hideWin()});
+statusEl.addEventListener('click',function(e){if(e.target&&e.target.getAttribute('data-next')){hideWin();newGame()}});
 showTally();
 $('newBtn').onclick=newGame;
 $('clearBtn').onclick=function(){row=[];render()};
