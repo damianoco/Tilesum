@@ -51,6 +51,7 @@ button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 @keyframes pop{0%{transform:scale(.97)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.win{animation:none}}
 </style>
+<script data-goatcounter="https://damianoco.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
 <main>
@@ -81,7 +82,7 @@ button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 <button id="solBtn">Show a solution</button>
 </div>
 <p class="status" id="sol" style="margin-top:12px;color:var(--mute)"></p>
-<p class="rules" style="margin:18px 0 0;font-size:.8rem">Version 8</p>
+<p class="rules" style="margin:18px 0 0;font-size:.8rem">Version 9 · Visits and solved games are counted anonymously, with no cookies.</p>
 </main>
 <script>
 (function(){
@@ -140,6 +141,7 @@ function showWin(em){
   $('winMsg').textContent=em?'A new smiley joins your trail.':'No smiley this time, but you got there.';
   d.hidden=false;try{d.scrollIntoView({block:'nearest'})}catch(e){}try{$('winNext').focus({preventScroll:true})}catch(e){}
 }
+function track(path,title){try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:path,title:title,event:true})}catch(e){}}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function showTally(){var t=$('tally');t.setAttribute('aria-label',tallyList.length?'Tally of games':'No games yet');t.textContent=tallyList.length?tallyList.join(' '):'Solve a puzzle to start your smile trail'}
 function fmt(v){return Math.abs(v-Math.round(v))<1e-9?String(Math.round(v)):v.toFixed(3).replace(/0+$/,'')}
@@ -150,7 +152,7 @@ function update(){
   if(!row.length){statusEl.textContent='';return}
   try{
     var v=evaluate(row);
-    if(Math.abs(v-target)<1e-9&&used>=2){statusEl.className='status ok win';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – Solved! <button class="pri" data-next="1">Next game</button>';if(!solved){solved=true;var em='';if(!peeked){em=pick(SMILES);tallyList.push(em);showTally()}try{showWin(em)}catch(err){}}}
+    if(Math.abs(v-target)<1e-9&&used>=2){statusEl.className='status ok win';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – Solved! <button class="pri" data-next="1">Next game</button>';if(!solved){solved=true;track(peeked?'solved-with-peek':'solved',peeked?'Game solved after a peek':'Game solved');var em='';if(!peeked){em=pick(SMILES);tallyList.push(em);showTally()}try{showWin(em)}catch(err){}}}
     else if(Math.abs(v-target)<1e-9){statusEl.className='status';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – use at least two numbers.'}
     else{statusEl.className='status';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – not '+target+' yet.'}
   }catch(e){statusEl.className='status bad';statusEl.textContent=e.message}
