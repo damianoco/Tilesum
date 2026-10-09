@@ -30,6 +30,16 @@ p.rules{color:var(--mute);margin:0 0 18px;font-size:.92rem;line-height:1.45}
 .tile.ghost{position:fixed;z-index:50;pointer-events:none;transform:translate(-50%,-50%) scale(1.1) rotate(-3deg);box-shadow:0 10px 18px rgba(0,0,0,.35)}
 .tile.lift{opacity:.25}
 .tally{font-size:1.6rem;line-height:1.35;min-height:2.2rem;margin:0 0 14px;word-break:break-word}
+.wbox{padding:22px 26px;text-align:center}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--board);color:var(--ink);padding:0;max-width:min(92vw,380px)}
+dialog::backdrop{background:rgba(10,16,16,.55)}
+dialog[open]{animation:dlg .25s ease-out}
+@keyframes dlg{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){dialog[open]{animation:none}}
+.wemoji{font-size:3.2rem;line-height:1.1}
+.wbox h2{font-family:Fraunces,Georgia,serif;font-weight:800;margin:6px 0 8px}
+.weq{font-family:Fraunces,Georgia,serif;font-size:1.4rem;font-weight:600;margin:0 0 6px;word-break:break-word}
+.wmsg{color:var(--mute);margin:0 0 16px}
 .status{min-height:2.6em;margin:2px 0 12px;font-size:1.05rem}
 .status .v{font-weight:700}
 .status.ok{color:var(--ok)}.status.bad{color:var(--bad)}
@@ -59,6 +69,18 @@ button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 </div>
 <p class="status" id="sol" style="margin-top:12px;color:var(--mute)"></p>
 </main>
+<dialog id="win" aria-labelledby="winTitle">
+<div class="wbox">
+<div class="wemoji" id="winEmoji" aria-hidden="true"></div>
+<h2 id="winTitle"></h2>
+<p class="weq" id="winEq"></p>
+<p class="wmsg" id="winMsg"></p>
+<div class="btns" style="justify-content:center">
+<button class="pri" id="winNext" autofocus>Next game</button>
+<button id="winClose">Keep looking</button>
+</div>
+</div>
+</dialog>
 <script>
 (function(){
 var tallyList=[],peeked=false,uid=0,nums=[],row=[],target=0,solutions=new Map(),solved=false;
@@ -108,6 +130,14 @@ function evaluate(tiles){
 var SMILES=['😀','😄','😁','😎','🥳','😊','🤩','😃'];
 var OOPS=['🙈','🤡','🐢','🏳️','🤦','🦥'];
 var QUIPS=['Peeking, are we? Here you go:','The numbers wanted me to tell you:','A wise owl whispers:','Fine, since you asked so nicely:','Spoiler alert!','Even calculators need a hint sometimes:'];
+function showWin(em){
+  var d=$('win');
+  $('winEmoji').textContent=em||'🙂';
+  $('winTitle').textContent=em?pick(['Solved!','Nicely done!','Got it!','Brilliant!']):'Solved, with a peek';
+  $('winEq').textContent=row.map(function(t){return t.txt}).join(' ')+' = '+target;
+  $('winMsg').textContent=em?'A new smiley joins your trail.':'No smiley this time, but you got there.';
+  if(d.showModal&&!d.open)d.showModal();
+}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function showTally(){var t=$('tally');t.setAttribute('aria-label',tallyList.length?'Tally of games':'No games yet');t.textContent=tallyList.length?tallyList.join(' '):'Solve a puzzle to start your smile trail'}
 function fmt(v){return Math.abs(v-Math.round(v))<1e-9?String(Math.round(v)):v.toFixed(3).replace(/0+$/,'')}
@@ -118,7 +148,7 @@ function update(){
   if(!row.length){statusEl.textContent='';return}
   try{
     var v=evaluate(row);
-    if(Math.abs(v-target)<1e-9&&used>=2){statusEl.className='status ok win';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – Solved! Start a new game when you are ready.';if(!solved){solved=true;if(!peeked){tallyList.push(pick(SMILES));showTally()}}}
+    if(Math.abs(v-target)<1e-9&&used>=2){statusEl.className='status ok win';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – Solved! Start a new game when you are ready.';if(!solved){solved=true;var em='';if(!peeked){em=pick(SMILES);tallyList.push(em);showTally()}showWin(em)}}
     else if(Math.abs(v-target)<1e-9){statusEl.className='status';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – use at least two numbers.'}
     else{statusEl.className='status';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – not '+target+' yet.'}
   }catch(e){statusEl.className='status bad';statusEl.textContent=e.message}
@@ -162,7 +192,7 @@ function down(e,t,src,el){
   }
   function up(ev){
     window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);
-    rowEl.classList.remove('over');if(ghost)ghost.remove();
+    rowEl.classList.remove('over');if(ghost)ghost.remove();el.classList.remove('lift');
     var item=src==='pal'?mk(t.txt,t.t):t;
     if(!drag){
       if(src==='row')row.splice(row.indexOf(t),1);else row.push(item);
@@ -192,6 +222,10 @@ function newGame(){
   render();
 }
 function strip(e){return e.charAt(0)==='('&&e.charAt(e.length-1)===')'?e.slice(1,-1):e}
+var winEl=$('win');
+$('winNext').onclick=function(){winEl.close();newGame()};
+$('winClose').onclick=function(){winEl.close()};
+winEl.addEventListener('click',function(e){if(e.target===winEl)winEl.close()});
 showTally();
 $('newBtn').onclick=newGame;
 $('clearBtn').onclick=function(){row=[];render()};
