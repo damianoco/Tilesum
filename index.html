@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tile Sums</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f1efe8;--board:#fbfaf6;--ink:#1f2a2c;--mute:#6b7775;--line:#d6d2c4;--num:#fffdf5;--op:#c58b2b;--opt:#fff;--br:#5d7a78;--ok:#2f8f5b;--bad:#b4472f;--slot:#e6e2d4;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141b1c;--board:#1c2627;--ink:#ece8da;--mute:#8d9b98;--line:#33413f;--num:#efe9d6;--slot:#26342f}}
+:root[data-theme="dark"]{--bg:#141b1c;--board:#1c2627;--ink:#ece8da;--mute:#8d9b98;--line:#33413f;--num:#efe9d6;--slot:#26342f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+main{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-family:Fraunces,Georgia,serif;font-weight:800;font-size:1.5rem;margin:0 0 4px}
+p.rules{color:var(--mute);margin:0 0 18px;font-size:.92rem;line-height:1.45}
+.target{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}
+.target span{color:var(--mute);font-size:.95rem}
+.target b{font-family:Fraunces,Georgia,serif;font-size:3.4rem;line-height:1;font-weight:800}
+.panel{background:var(--board);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px}
+.lbl{font-size:.85rem;color:var(--mute);margin:0 0 8px}
+.zone{display:flex;flex-wrap:wrap;gap:8px;min-height:72px;align-items:center;border-radius:10px}
+#row{background:var(--slot);padding:8px;min-height:84px;border:2px dashed var(--line)}
+#row.over{border-color:var(--op)}
+#row .hint{color:var(--mute);font-size:.9rem;padding:0 6px}
+.tile{width:54px;height:60px;display:flex;align-items:center;justify-content:center;border-radius:9px;font-family:Fraunces,Georgia,serif;font-weight:800;font-size:1.7rem;user-select:none;-webkit-user-select:none;touch-action:none;cursor:grab;box-shadow:0 3px 0 rgba(0,0,0,.28);background:var(--num);color:#1f2a2c}
+.tile.o{background:var(--op);color:var(--opt)}
+.tile.b{background:var(--br);color:#fff}
+.tile.ghost{position:fixed;z-index:50;pointer-events:none;transform:translate(-50%,-50%) scale(1.1) rotate(-3deg);box-shadow:0 10px 18px rgba(0,0,0,.35)}
+.tile.lift{opacity:.25}
+.tally{font-size:1.6rem;line-height:1.35;min-height:2.2rem;margin:0 0 14px;word-break:break-word}
+.status{min-height:2.6em;margin:2px 0 12px;font-size:1.05rem}
+.status .v{font-weight:700}
+.status.ok{color:var(--ok)}.status.bad{color:var(--bad)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;padding:10px 16px;border-radius:9px;border:1px solid var(--line);background:var(--board);color:var(--ink);cursor:pointer}
+button:focus-visible{outline:3px solid var(--op);outline-offset:2px}
+button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.win{animation:pop .5s}
+@keyframes pop{0%{transform:scale(.97)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.win{animation:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>Tile Sums</h1>
+<p class="rules">Make the target using at least two of the five number tiles, each at most once, with + − × ÷ and brackets. Drag tiles into the line (or tap them), drag to reorder, and tap a tile in the line to remove it.</p>
+<div class="target"><span>Target</span><b id="target">–</b></div>
+<div id="tally" class="tally" role="status"></div>
+<div class="panel"><p class="lbl">Your equation</p><div class="zone" id="row"></div></div>
+<div class="status" id="status"></div>
+<div class="panel"><p class="lbl">Numbers</p><div class="zone" id="tray"></div></div>
+<div class="panel"><p class="lbl">Operators and brackets</p><div class="zone" id="pal"></div></div>
+<div class="btns">
+<button class="pri" id="newBtn">New game</button>
+<button id="clearBtn">Clear</button>
+<button id="solBtn">Show a solution</button>
+</div>
+<p class="status" id="sol" style="margin-top:12px;color:var(--mute)"></p>
+</main>
+<script>
+(function(){
+var tallyList=[],peeked=false,uid=0,nums=[],row=[],target=0,solutions=new Map(),solved=false;
+var $=function(i){return document.getElementById(i)};
+var rowEl=$('row'),trayEl=$('tray'),palEl=$('pal'),statusEl=$('status');
+function mk(txt,t){return{id:++uid,txt:txt,t:t}}
+var PAL=[['+','o'],['−','o'],['×','o'],['÷','o'],['(','b'],[')','b']];
+
+// Solver: find which integer targets 1-100 are reachable using all numbers once
+function solve(vals){
+  var found=new Map();
+  function go(items){
+    items.forEach(function(it){var v=it.v;
+      if(it.k>=2&&v>=1&&v<=100&&Math.abs(v-Math.round(v))<1e-9){var r=Math.round(v);if(!found.has(r))found.set(r,it.e)}});
+    if(items.length===1)return;
+    for(var i=0;i<items.length;i++)for(var j=i+1;j<items.length;j++){
+      var a=items[i],b=items[j],rest=items.filter(function(_,k){return k!==i&&k!==j});
+      var c=[[a.v+b.v,'('+a.e+' + '+b.e+')'],[a.v*b.v,'('+a.e+' × '+b.e+')'],[a.v-b.v,'('+a.e+' − '+b.e+')'],[b.v-a.v,'('+b.e+' − '+a.e+')']];
+      if(b.v!==0)c.push([a.v/b.v,'('+a.e+' ÷ '+b.e+')']);
+      if(a.v!==0)c.push([b.v/a.v,'('+b.e+' ÷ '+a.e+')']);
+      c.forEach(function(x){go(rest.concat([{v:x[0],e:x[1],k:a.k+b.k}]))});
+    }
+  }
+  go(vals.map(function(n){return{v:n,e:String(n),k:1}}));
+  return found;
+}
+
+// Safe evaluator for the tile line
+function evaluate(tiles){
+  var toks=tiles.map(function(t){return t.txt}),p=0;
+  function peek(){return toks[p]}
+  function isNum(s){return s!==undefined&&/^\d+$/.test(s)}
+  function expr(){var v=term();while(peek()==='+'||peek()==='−'){var o=toks[p++],r=term();v=o==='+'?v+r:v-r}return v}
+  function term(){var v=factor();while(peek()==='×'||peek()==='÷'){var o=toks[p++],r=factor();if(o==='÷'&&r===0)throw new Error('Division by zero');v=o==='×'?v*r:v/r}return v}
+  function factor(){var t=toks[p];
+    if(isNum(t)){p++;if(isNum(peek()))throw new Error('Two numbers are side by side – put an operator between them');if(peek()==='(')throw new Error('Put an operator before the bracket');return +t}
+    if(t==='('){p++;var v=expr();if(peek()!==')')throw new Error('A bracket is not closed');p++;if(isNum(peek())||peek()==='(')throw new Error('Put an operator after the bracket');return v}
+    if(t===undefined)throw new Error('The equation ends too early');
+    throw new Error('Unexpected "'+t+'"');
+  }
+  if(!toks.length)throw new Error('');
+  var v=expr();
+  if(p<toks.length)throw new Error(toks[p]===')'?'There is an extra closing bracket':'Unexpected "'+toks[p]+'"');
+  return v;
+}
+
+var SMILES=['😀','😄','😁','😎','🥳','😊','🤩','😃'];
+var OOPS=['🙈','🤡','🐢','🏳️','🤦','🦥'];
+var QUIPS=['Peeking, are we? Here you go:','The numbers wanted me to tell you:','A wise owl whispers:','Fine, since you asked so nicely:','Spoiler alert!','Even calculators need a hint sometimes:'];
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function showTally(){var t=$('tally');t.setAttribute('aria-label',tallyList.length?'Tally of games':'No games yet');t.textContent=tallyList.length?tallyList.join(' '):'Solve a puzzle to start your smile trail'}
+function fmt(v){return Math.abs(v-Math.round(v))<1e-9?String(Math.round(v)):v.toFixed(3).replace(/0+$/,'')}
+
+function update(){
+  var used=row.filter(function(t){return t.t==='n'}).length;
+  statusEl.className='status';
+  if(!row.length){statusEl.textContent='';return}
+  try{
+    var v=evaluate(row);
+    if(Math.abs(v-target)<1e-9&&used>=2){statusEl.className='status ok win';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – Solved! Start a new game when you are ready.';if(!solved){solved=true;if(!peeked){tallyList.push(pick(SMILES));showTally()}}}
+    else if(Math.abs(v-target)<1e-9){statusEl.className='status';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – use at least two numbers.'}
+    else{statusEl.className='status';statusEl.innerHTML='= <span class="v">'+fmt(v)+'</span> – not '+target+' yet.'}
+  }catch(e){statusEl.className='status bad';statusEl.textContent=e.message}
+}
+
+function tileEl(t,src){
+  var d=document.createElement('div');
+  d.className='tile '+(t.t==='n'?'':t.t);d.textContent=t.txt;d.dataset.id=t.id;
+  d.addEventListener('pointerdown',function(e){down(e,t,src,d)});
+  return d;
+}
+function render(){
+  rowEl.innerHTML='';trayEl.innerHTML='';
+  row.forEach(function(t){rowEl.appendChild(tileEl(t,'row'))});
+  if(!row.length){var h=document.createElement('span');h.className='hint';h.textContent='Drop tiles here';rowEl.appendChild(h)}
+  nums.forEach(function(t){if(row.indexOf(t)<0)trayEl.appendChild(tileEl(t,'tray'))});
+  if(!trayEl.children.length){var h2=document.createElement('span');h2.className='hint';h2.style.color='var(--mute)';h2.textContent='All numbers are in the line';trayEl.appendChild(h2)}
+  update();
+}
+PAL.forEach(function(p){palEl.appendChild(tileEl(mk(p[0],p[1]),'pal'))});
+
+function insertIndex(x,y,skipId){
+  var kids=Array.prototype.filter.call(rowEl.querySelectorAll('.tile'),function(k){return +k.dataset.id!==skipId});
+  var idx=0;
+  for(var i=0;i<kids.length;i++){
+    var r=kids[i].getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,hh=r.height/2;
+    if(cy<y-hh||(Math.abs(cy-y)<=hh&&cx<x))idx=i+1;
+  }
+  return idx;
+}
+function overRow(x,y){var r=rowEl.getBoundingClientRect();return x>r.left-16&&x<r.right+16&&y>r.top-16&&y<r.bottom+16}
+
+function down(e,t,src,el){
+  if(e.button>0)return;
+  e.preventDefault();
+  var sx=e.clientX,sy=e.clientY,drag=false,ghost=null;
+  function move(ev){
+    var x=ev.clientX,y=ev.clientY;
+    if(!drag&&Math.hypot(x-sx,y-sy)>6){drag=true;ghost=el.cloneNode(true);ghost.classList.add('ghost');document.body.appendChild(ghost);el.classList.add('lift')}
+    if(drag){ghost.style.left=x+'px';ghost.style.top=y+'px';rowEl.classList.toggle('over',overRow(x,y))}
+  }
+  function up(ev){
+    window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);
+    rowEl.classList.remove('over');if(ghost)ghost.remove();
+    var item=src==='pal'?mk(t.txt,t.t):t;
+    if(!drag){
+      if(src==='row')row.splice(row.indexOf(t),1);else row.push(item);
+    }else{
+      var x=ev.clientX,y=ev.clientY;
+      if(overRow(x,y)){
+        var idx=insertIndex(x,y,src==='row'?t.id:-1);
+        if(src==='row')row.splice(row.indexOf(t),1);
+        row.splice(idx,0,item);
+      }else if(src==='row'){row.splice(row.indexOf(t),1)}
+    }
+    render();
+  }
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
+}
+
+function newGame(){
+  var tries=0,keys;
+  do{
+    nums=[];for(var i=0;i<5;i++)nums.push(1+Math.floor(Math.random()*12));
+    solutions=solve(nums);keys=Array.from(solutions.keys());tries++;
+  }while(!keys.length&&tries<200);
+  target=keys[Math.floor(Math.random()*keys.length)];
+  nums=nums.map(function(n){return mk(String(n),'n')});
+  row=[];solved=false;peeked=false;
+  $('target').textContent=target;$('sol').textContent='';
+  render();
+}
+function strip(e){return e.charAt(0)==='('&&e.charAt(e.length-1)===')'?e.slice(1,-1):e}
+showTally();
+$('newBtn').onclick=newGame;
+$('clearBtn').onclick=function(){row=[];render()};
+$('solBtn').onclick=function(){
+  if(!peeked&&!solved){peeked=true;tallyList.push(pick(OOPS));showTally()}
+  $('sol').textContent=pick(QUIPS)+' '+strip(solutions.get(target))+' = '+target};
+newGame();
+})();
+</script>
+</body>
+</html>
